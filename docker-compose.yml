@@ -1,0 +1,66 @@
+# docker-compose.yml — PROJETO FABLE
+#
+# Uso:
+#   1. Copie .env.example para .env (nesta mesma pasta) e preencha.
+#   2. docker compose up -d --build
+#   3. Backend em http://localhost:4002 (health: /health)
+#      Frontend em http://localhost:3021
+#
+# Portas escolhidas pra não conflitar com os outros projetos:
+#   Controle NF    -> db 5432 | api 4000 | front 3001
+#   Controle Rota  -> db 5433 | api 4001 | front 3011
+#   Fable          -> db 5450 (mude com DB_PORT no .env) | api 4002 | front 3021
+
+services:
+  postgres_fable:
+    image: postgres:16-alpine
+    container_name: postgres_fable
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: fable_db
+    ports:
+      - "127.0.0.1:${DB_PORT:-5450}:5432"
+    volumes:
+      - postgres_fable_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend_fable:
+    build:
+      context: ./backend
+    container_name: backend_fable
+    restart: unless-stopped
+    depends_on:
+      postgres_fable:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4002:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres_fable:5432/fable_db?schema=public
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@fable.local}
+      ADMIN_SENHA: ${ADMIN_SENHA:?defina ADMIN_SENHA no .env}
+    volumes:
+      - backend_fable_storage:/app/storage
+
+  frontend_fable:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4002}
+    container_name: frontend_fable
+    restart: unless-stopped
+    depends_on:
+      - backend_fable
+    ports:
+      - "127.0.0.1:3021:4173"
+
+volumes:
+  postgres_fable_data:
+  backend_fable_storage:

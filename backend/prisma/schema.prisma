@@ -1,0 +1,91 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PerfilUsuario {
+  ADMIN
+  FUNCIONARIO
+}
+
+model Usuario {
+  id        String        @id @default(uuid())
+  nome      String?
+  email     String        @unique
+  senha     String
+  perfil    PerfilUsuario @default(FUNCIONARIO)
+  ativo     Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Precificação
+// ---------------------------------------------------------------------------
+
+enum MetodoDespesaFixa {
+  MANUAL
+  RATEIO
+}
+
+model Material {
+  id                   String      @id @default(uuid())
+  nome                 String
+  fabricante           String?
+  tipo                 String
+  cor                  String
+  pesoLiquidoG         Decimal     @db.Decimal(14, 3)
+  precoRolo            Decimal     @db.Decimal(14, 2)
+  freteAquisicao       Decimal     @default(0) @db.Decimal(14, 2)
+  freteIncluidoNoPreco Boolean     @default(false)
+  observacoes          String?
+  ativo                Boolean     @default(true)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  simulacoes           Simulacao[]
+}
+
+// Linha única (id = 1) com os parâmetros padrão da calculadora.
+model Configuracao {
+  id                    Int               @id @default(1)
+  tarifaEnergiaKwh      Decimal           @default(0) @db.Decimal(14, 6)
+  consumoImpressoraKw   Decimal           @default(0) @db.Decimal(14, 6)
+  manutencaoHora        Decimal           @default(0) @db.Decimal(14, 6)
+  custoHoraTrabalho     Decimal           @default(0) @db.Decimal(14, 6)
+  despesasFixasMensais  Decimal           @default(0) @db.Decimal(14, 2)
+  unidadesVendidasMes   Int               @default(0)
+  metodoDespesaFixa     MetodoDespesaFixa @default(MANUAL)
+  despesaFixaManualUnit Decimal           @default(0) @db.Decimal(14, 6)
+  taxaVendaPct          Decimal           @default(0) @db.Decimal(9, 4)
+  impostosPct           Decimal           @default(0) @db.Decimal(9, 4)
+  outrasVariaveisPct    Decimal           @default(0) @db.Decimal(9, 4)
+  margemLucroPct        Decimal           @default(0) @db.Decimal(9, 4)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+// Simulação salva. "snapshot" guarda TODOS os valores usados no cálculo e
+// "resultado" o resultado completo — nada é recalculado a partir do cadastro
+// atual. As colunas numéricas soltas existem só para listagem/ordenação.
+model Simulacao {
+  id                    String    @id @default(uuid())
+  nome                  String
+  codigo                String?
+  observacoes           String?
+  quantidade            Int
+  materialId            String?
+  material              Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  snapshot              Json
+  resultado             Json
+  custoUnitarioCompleto Decimal   @db.Decimal(18, 6)
+  precoRecomendadoUnit  Decimal?  @db.Decimal(18, 6)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([createdAt])
+}
