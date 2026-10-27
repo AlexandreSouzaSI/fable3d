@@ -10,8 +10,8 @@ export default defineConfig({
   preview: {
     host: true,
     port: 4173,
-    // Atrás do Nginx o Host chega como o domínio público — adicione aqui
-    // o domínio final quando for pra produção (ex: 'fable.amsx.online').
-    allowedHosts: ['localhost'],
+    // Atrás do Nginx o Host chega como o domínio público; sem liberar aqui,
+    // o "vite preview" recusa a requisição (mesmo ajuste do Controle Rota).
+    allowedHosts: ['localhost', 'fable.amsx.online', 'api.fable.amsx.online'],
   },
 })
